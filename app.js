@@ -5,25 +5,159 @@
 // ===== CONFIGURATION =====
 const DATA_DIR = 'data';
 
-// Shortcuts that cannot be prevented by the browser
+// ===== SOUND EFFECTS (Web Audio API — no external files, copyright-free) =====
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+const SFX = {
+  // 正解音: 明るい上昇チャイム
+  correct() {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    [523.25, 659.25, 783.99].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.18, now + i * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.3);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now + i * 0.08);
+      osc.stop(now + i * 0.08 + 0.3);
+    });
+  },
+
+  // ミス音: 低い下降ブザー
+  wrong() {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(150, now + 0.2);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  },
+
+  // ゲーム開始音: 軽快なスタート音
+  start() {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    [440, 554.37, 659.25].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.15, now + i * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.25);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now + i * 0.1);
+      osc.stop(now + i * 0.1 + 0.25);
+    });
+  },
+
+  // ゲーム終了ファンファーレ
+  fanfare() {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.15, now + i * 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.5);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now + i * 0.15);
+      osc.stop(now + i * 0.15 + 0.5);
+    });
+    // 和音でフィニッシュ
+    setTimeout(() => {
+      const t = ctx.currentTime;
+      [523.25, 659.25, 783.99, 1046.5].forEach(freq => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.1, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.8);
+      });
+    }, 700);
+  },
+
+  // キー押下のクリック音
+  keypress() {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 800;
+    gain.gain.setValueAtTime(0.05, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.05);
+  },
+};
+
+// Shortcuts that cannot be prevented by the browser (Chrome on Windows)
 const BLOCKED_SHORTCUTS = [
-  'Alt+F4',
-  'Ctrl+W',
-  'Ctrl+T',
-  'Ctrl+N',
-  'Ctrl+Shift+W',
-  'Ctrl+Shift+T',
-  'Ctrl+Shift+N',
-  'Ctrl+Tab',
-  'Ctrl+Shift+Tab',
-  'F11',
-  'Ctrl+Shift+Q',
-  'Ctrl+Shift+I',
-  'Ctrl+Shift+J',
-  'F12',
-  'Ctrl+L',
-  'Ctrl+Shift+Delete',
-  'Alt+Home',
+  // ウィンドウ・タブ操作（ブラウザが強制的に処理）
+  'Alt+F4',           // ウィンドウ終了
+  'Ctrl+W',           // タブを閉じる
+  'Ctrl+T',           // 新しいタブ
+  'Ctrl+N',           // 新しいウィンドウ
+  'Ctrl+Shift+W',     // ウィンドウを閉じる
+  'Ctrl+Shift+T',     // 閉じたタブを復元
+  'Ctrl+Shift+N',     // シークレットウィンドウ
+  // タブ移動
+  'Ctrl+Tab',         // 次のタブ
+  'Ctrl+Shift+Tab',   // 前のタブ
+  'Ctrl+PageDown',    // 次のタブ
+  'Ctrl+PageUp',      // 前のタブ
+  'Ctrl+1',           // タブ1に移動
+  'Ctrl+2',           // タブ2に移動
+  'Ctrl+3',           // タブ3に移動
+  'Ctrl+4',           // タブ4に移動
+  'Ctrl+5',           // タブ5に移動
+  'Ctrl+6',           // タブ6に移動
+  'Ctrl+7',           // タブ7に移動
+  'Ctrl+8',           // タブ8に移動
+  'Ctrl+9',           // 最後のタブ
+  // ブラウザ機能
+  'F11',              // 全画面切替
+  'F12',              // DevTools
+  'Ctrl+Shift+I',     // DevTools
+  'Ctrl+Shift+J',     // DevTools Console
+  'Ctrl+Shift+Q',     // Chrome終了
+  'Ctrl+L',           // アドレスバー
+  'Alt+D',            // アドレスバー
+  'Ctrl+Shift+Delete', // 履歴削除
+  'Alt+Home',         // ホームページ
+  'Ctrl+J',           // ダウンロード
+  'Ctrl+H',           // 履歴
+  'Ctrl+Shift+B',     // ブックマークバー
+  'Ctrl+D',           // ブックマーク追加
+  'Ctrl+Shift+O',     // ブックマーク管理
+  'Alt+ArrowLeft',    // 戻る
+  'Alt+ArrowRight',   // 進む
+  'Ctrl+E',           // 検索バー
+  'Ctrl+G',           // 次を検索
+  'Ctrl+Shift+G',     // 前を検索
+  'Ctrl+U',           // ソース表示
+  'Ctrl+Shift+M',     // プロフィール切替
 ];
 
 // Normalize a shortcut key string to enable comparison
@@ -181,7 +315,155 @@ const FALLBACK_DATA = {
 検索・表示,プレビューパネルの切替,Alt+P,2
 検索・表示,詳細パネルの切替,Alt+Shift+P,3
 選択,全てのファイルを選択,Ctrl+A,1
-選択,選択の切替,Ctrl+Space,2`
+選択,選択の切替,Ctrl+Space,2`,
+  'Chrome': `category,operation,keys,difficulty
+タブ管理,新しいタブを開く,Ctrl+T,1
+タブ管理,タブを閉じる,Ctrl+W,1
+タブ管理,閉じたタブを復元,Ctrl+Shift+T,1
+タブ管理,新しいウィンドウ,Ctrl+N,1
+タブ管理,シークレットウィンドウ,Ctrl+Shift+N,2
+ナビゲーション,戻る,Alt+ArrowLeft,1
+ナビゲーション,進む,Alt+ArrowRight,1
+ナビゲーション,ページの先頭に移動,Home,1
+ナビゲーション,ページの末尾に移動,End,1
+ナビゲーション,ページを再読み込み,F5,1
+ナビゲーション,強制再読み込み,Ctrl+Shift+R,2
+ナビゲーション,アドレスバーに移動,Alt+D,1
+ページ操作,ページ内検索,Ctrl+F,1
+ページ操作,印刷,Ctrl+P,1
+ページ操作,保存,Ctrl+S,2
+ページ操作,ズームイン,Ctrl+Shift+=,2
+ページ操作,ズームアウト,Ctrl+-,2
+ページ操作,ズームリセット,Ctrl+0,2
+ページ操作,全画面表示切替,F11,1
+テキスト,コピー,Ctrl+C,1
+テキスト,貼り付け,Ctrl+V,1
+テキスト,切り取り,Ctrl+X,1
+テキスト,全選択,Ctrl+A,1
+テキスト,元に戻す,Ctrl+Z,1
+テキスト,やり直し,Ctrl+Shift+Z,2
+ブックマーク,ブックマークに追加,Ctrl+D,1
+ブックマーク,ブックマークバーの表示切替,Ctrl+Shift+B,2
+ブックマーク,ブックマークマネージャー,Ctrl+Shift+O,2
+その他,ダウンロード一覧を開く,Ctrl+J,2
+その他,履歴を開く,Ctrl+H,2
+その他,閲覧履歴の削除,Ctrl+Shift+Delete,2
+その他,デベロッパーツール,F12,2
+その他,ソースの表示,Ctrl+U,3`,
+  'Word': `category,operation,keys,difficulty
+基本操作,コピー,Ctrl+C,1
+基本操作,貼り付け,Ctrl+V,1
+基本操作,切り取り,Ctrl+X,1
+基本操作,元に戻す,Ctrl+Z,1
+基本操作,やり直し,Ctrl+Y,1
+基本操作,上書き保存,Ctrl+S,1
+基本操作,名前を付けて保存,F12,1
+基本操作,印刷,Ctrl+P,1
+基本操作,全選択,Ctrl+A,1
+基本操作,検索,Ctrl+F,1
+基本操作,置換,Ctrl+H,2
+書式設定,太字,Ctrl+B,1
+書式設定,斜体,Ctrl+I,1
+書式設定,下線,Ctrl+U,1
+書式設定,フォントサイズを大きく,Ctrl+Shift+>,2
+書式設定,フォントサイズを小さく,Ctrl+Shift+<,2
+書式設定,中央揃え,Ctrl+E,2
+書式設定,左揃え,Ctrl+L,1
+書式設定,右揃え,Ctrl+R,2
+書式設定,両端揃え,Ctrl+J,2
+段落・リスト,インデントを増やす,Tab,1
+段落・リスト,インデントを減らす,Shift+Tab,1
+段落・リスト,行間を1行に設定,Ctrl+1,2
+段落・リスト,行間を2行に設定,Ctrl+2,2
+段落・リスト,行間を1.5行に設定,Ctrl+5,2
+ナビゲーション,文書の先頭に移動,Ctrl+Home,1
+ナビゲーション,文書の末尾に移動,Ctrl+End,1
+ナビゲーション,1単語右に移動,Ctrl+ArrowRight,2
+ナビゲーション,1単語左に移動,Ctrl+ArrowLeft,2
+ナビゲーション,ジャンプ,Ctrl+G,2
+選択,1単語ずつ選択（右）,Ctrl+Shift+ArrowRight,2
+選択,1単語ずつ選択（左）,Ctrl+Shift+ArrowLeft,2
+選択,行の先頭まで選択,Shift+Home,2
+選択,行の末尾まで選択,Shift+End,2
+その他,ハイパーリンクの挿入,Ctrl+K,2
+その他,スペルチェック,F7,2
+その他,改ページの挿入,Ctrl+Enter,2`,
+  'PowerPoint': `category,operation,keys,difficulty
+基本操作,コピー,Ctrl+C,1
+基本操作,貼り付け,Ctrl+V,1
+基本操作,切り取り,Ctrl+X,1
+基本操作,元に戻す,Ctrl+Z,1
+基本操作,やり直し,Ctrl+Y,1
+基本操作,上書き保存,Ctrl+S,1
+基本操作,印刷,Ctrl+P,1
+基本操作,検索,Ctrl+F,1
+基本操作,全選択,Ctrl+A,1
+スライド操作,新しいスライドの追加,Ctrl+M,2
+スライド操作,スライドショー開始（最初から）,F5,1
+スライド操作,スライドショー開始（現在から）,Shift+F5,2
+スライド操作,スライドの複製,Ctrl+D,2
+スライド操作,スライドショー終了,Escape,1
+書式設定,太字,Ctrl+B,1
+書式設定,斜体,Ctrl+I,1
+書式設定,下線,Ctrl+U,1
+書式設定,中央揃え,Ctrl+E,2
+書式設定,左揃え,Ctrl+L,1
+書式設定,右揃え,Ctrl+R,2
+その他,ハイパーリンクの挿入,Ctrl+K,2
+その他,名前を付けて保存,F12,1`,
+  'VSCode': `category,operation,keys,difficulty
+基本操作,コピー,Ctrl+C,1
+基本操作,貼り付け,Ctrl+V,1
+基本操作,切り取り,Ctrl+X,1
+基本操作,元に戻す,Ctrl+Z,1
+基本操作,やり直し,Ctrl+Y,1
+基本操作,上書き保存,Ctrl+S,1
+基本操作,全選択,Ctrl+A,1
+基本操作,検索,Ctrl+F,1
+基本操作,置換,Ctrl+H,2
+編集,行の削除,Ctrl+Shift+K,2
+編集,行を上に移動,Alt+ArrowUp,2
+編集,行を下に移動,Alt+ArrowDown,2
+編集,行を上にコピー,Shift+Alt+ArrowUp,2
+編集,行を下にコピー,Shift+Alt+ArrowDown,2
+編集,下に空行を挿入,Ctrl+Enter,2
+編集,行のコメントアウト切替,Ctrl+/,2
+編集,ブロックコメント切替,Shift+Alt+A,3
+マルチカーソル,同じ単語を次に選択,Ctrl+D,2
+マルチカーソル,同じ単語を全て選択,Ctrl+Shift+L,3
+ナビゲーション,ファイルを素早く開く,Ctrl+P,1
+ナビゲーション,コマンドパレット,Ctrl+Shift+P,1
+ナビゲーション,指定行に移動,Ctrl+G,2
+ナビゲーション,定義に移動,F12,2
+表示,サイドバー表示切替,Ctrl+B,1
+表示,ズームイン,Ctrl+=,2
+表示,ズームアウト,Ctrl+-,2`,
+  'Windows共通': `category,operation,keys,difficulty
+ウィンドウ操作,ウィンドウを最大化,Win+ArrowUp,1
+ウィンドウ操作,ウィンドウを左半分にスナップ,Win+ArrowLeft,1
+ウィンドウ操作,ウィンドウを右半分にスナップ,Win+ArrowRight,1
+ウィンドウ操作,ウィンドウを最小化,Win+ArrowDown,1
+ウィンドウ操作,全ウィンドウを最小化,Win+D,1
+ウィンドウ操作,アプリの切替,Alt+Tab,1
+ウィンドウ操作,タスクビュー,Win+Tab,2
+システム,タスクマネージャー,Ctrl+Shift+Escape,2
+システム,エクスプローラーを開く,Win+E,1
+システム,設定を開く,Win+I,1
+システム,ロック画面,Win+L,1
+システム,スクリーンショット（全画面）,PrintScreen,1
+システム,スクリーンショット（範囲選択）,Win+Shift+S,2
+システム,クリップボード履歴,Win+V,2
+システム,絵文字パネル,Win+.,2
+システム,ファイル名を指定して実行,Win+R,2
+デスクトップ,仮想デスクトップの追加,Ctrl+Win+D,3
+デスクトップ,仮想デスクトップの切替（右）,Ctrl+Win+ArrowRight,3
+デスクトップ,仮想デスクトップの切替（左）,Ctrl+Win+ArrowLeft,3
+テキスト,全選択,Ctrl+A,1
+テキスト,コピー,Ctrl+C,1
+テキスト,貼り付け,Ctrl+V,1
+テキスト,切り取り,Ctrl+X,1
+テキスト,元に戻す,Ctrl+Z,1
+テキスト,やり直し,Ctrl+Y,1`
 };
 
 // ===== DATA LOADING =====
@@ -336,6 +618,7 @@ function startGame() {
   showScreen('game-screen');
   showQuestion();
   startTimer();
+  SFX.start();
 }
 
 function shuffleArray(arr) {
@@ -540,6 +823,7 @@ function handleCorrect() {
   dom.keyDisplay.classList.add('correct');
   dom.feedback.textContent = '✅ 正解！';
   dom.feedback.className = 'feedback correct-feedback';
+  SFX.correct();
 
   setTimeout(() => nextQuestion(), 800);
 }
@@ -562,6 +846,7 @@ function handleWrong(inputStr, correctKeys) {
   dom.keyDisplay.classList.add('wrong');
   dom.feedback.textContent = `❌ ミス — もう一度！`;
   dom.feedback.className = 'feedback wrong-feedback';
+  SFX.wrong();
 
   setTimeout(() => {
     dom.keyDisplay.classList.remove('wrong');
@@ -639,7 +924,7 @@ function endGame() {
     dom.missedList.innerHTML = state.missedQuestions.map(m =>
       `<div class="missed-item">
         <span class="missed-operation">${m.operation}</span>
-        <span class="missed-answer">正解: ${m.correctKeys}</span>
+        <span class="missed-answer">正解: ${friendlyKeys(m.correctKeys)}</span>
       </div>`
     ).join('');
   } else {
@@ -648,6 +933,7 @@ function endGame() {
   }
 
   showScreen('result-screen');
+  SFX.fanfare();
 
   // Save to localStorage
   saveScore({
@@ -672,10 +958,38 @@ function saveScore(score) {
   }
 }
 
+// ===== FRIENDLY KEY DISPLAY =====
+// Convert CSV key notation to user-friendly display
+function friendlyKeys(keysStr) {
+  const map = {
+    'ArrowUp': '↑',
+    'ArrowDown': '↓',
+    'ArrowLeft': '←',
+    'ArrowRight': '→',
+    'PageUp': 'PageUp',
+    'PageDown': 'PageDown',
+    'Escape': 'Esc',
+    'Delete': 'Delete',
+    'Backspace': 'Backspace',
+    'Enter': 'Enter',
+    'Tab': 'Tab',
+    'Home': 'Home',
+    'End': 'End',
+    'Insert': 'Insert',
+    'PrintScreen': 'PrtSc',
+    'Space': 'Space',
+    'Comma': ',',
+  };
+  return keysStr.split('+').map(k => {
+    const trimmed = k.trim();
+    return map[trimmed] || trimmed;
+  }).join(' + ');
+}
+
 // ===== HINT =====
 function showHint() {
   const q = state.questions[state.currentIndex];
-  dom.hintText.textContent = `💡 正解: ${q.keys}`;
+  dom.hintText.textContent = `💡 正解: ${friendlyKeys(q.keys)}`;
   dom.hintText.classList.remove('hidden');
   dom.hintBtn.style.display = 'none';
   state.hintUsed = true;
