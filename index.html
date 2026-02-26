@@ -4,8 +4,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KeyDrill — ショートカットキー訓練</title>
-    <meta name="description" content="ショートカットキーをゲーム感覚で訓練できるWebアプリ。Excel, Explorer, Chromeなど多数のソフトに対応。">
+    <title>KeyDrill — ショートカットキー訓練アプリ | Excel・Explorer対応 | Softex Celware</title>
+    <meta name="description"
+        content="Excel・Explorerなどのショートカットキーをタイピングゲーム感覚で練習できる無料Webアプリ。Ctrl+C、Alt+F11など実務で使うキー操作を効率よく覚えられます。Softex Celware提供。">
+    <meta name="keywords" content="ショートカットキー,訓練,練習,タイピングゲーム,Excel,エクセル,ショートカット,キーボード,業務効率化,Softex Celware">
+    <meta name="author" content="Softex Celware">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://keydrill.netlify.app/">
+
+    <!-- Open Graph / SNS共有 -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="KeyDrill — ショートカットキー訓練アプリ">
+    <meta property="og:description" content="Excel・Explorerなどのショートカットキーをゲーム感覚で練習。正答率・タイム・ランクで実力を測定。無料で使えるWebアプリ。">
+    <meta property="og:url" content="https://keydrill.netlify.app/">
+    <meta property="og:site_name" content="KeyDrill">
+    <meta property="og:locale" content="ja_JP">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="KeyDrill — ショートカットキー訓練アプリ">
+    <meta name="twitter:description" content="Excel・Explorerなどのショートカットキーをゲーム感覚で練習できる無料Webアプリ。">
+
+    <!-- 構造化データ (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "KeyDrill",
+      "description": "Excel・Explorerなどのショートカットキーをタイピングゲーム感覚で練習できる無料Webアプリ",
+      "url": "https://keydrill.netlify.app/",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web Browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "JPY"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "Softex Celware",
+        "url": "https://www.softex-celware.com/"
+      }
+    }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap"
@@ -20,6 +62,12 @@
 
         <!-- ========== TITLE SCREEN ========== -->
         <div id="title-screen" class="screen active">
+            <!-- 事業者ロゴ & リンク -->
+            <a href="https://www.softex-celware.com/" target="_blank" rel="noopener" class="brand-link"
+                title="Softex Celware — Excel VBAで業務自動化">
+                <img src="softex-celware.avif" alt="Softex Celware" class="brand-logo">
+            </a>
+
             <div class="title-container">
                 <div class="logo-icon">⌨️</div>
                 <h1 class="app-title">Key<span class="accent">Drill</span></h1>
@@ -151,6 +199,17 @@
                 </div>
             </div>
         </div>
+
+        <!-- ========== FOOTER ========== -->
+        <footer class="site-footer">
+            <a href="https://www.softex-celware.com/" target="_blank" rel="noopener" class="footer-brand">
+                <img src="softex-celware.avif" alt="Softex Celware" class="footer-logo">
+                <span class="footer-text">Softex Celware</span>
+            </a>
+            <p class="footer-desc">Excel VBAによる業務自動化ツール開発</p>
+            <p class="footer-copy">&copy; 2026 <a href="https://www.softex-celware.com/" target="_blank"
+                    rel="noopener">Softex Celware</a>. All rights reserved.</p>
+        </footer>
     </div>
 
     <script src="app.js"></script>
