@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KeyDrill — ショートカットキー訓練</title>
+    <meta name="description" content="ショートカットキーをゲーム感覚で訓練できるWebアプリ。Excel, Explorer, Chromeなど多数のソフトに対応。">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="app">
+        <!-- ========== PARTICLES BACKGROUND ========== -->
+        <canvas id="particles-canvas"></canvas>
+
+        <!-- ========== TITLE SCREEN ========== -->
+        <div id="title-screen" class="screen active">
+            <div class="title-container">
+                <div class="logo-icon">⌨️</div>
+                <h1 class="app-title">Key<span class="accent">Drill</span></h1>
+                <p class="app-subtitle">ショートカットキー訓練</p>
+            </div>
+
+            <div class="card settings-card">
+                <h2 class="card-title">訓練するソフトを選択</h2>
+                <div id="software-list" class="software-grid">
+                    <!-- Dynamically populated -->
+                </div>
+
+                <div class="settings-row">
+                    <div class="setting-group">
+                        <label for="question-count">出題数</label>
+                        <select id="question-count">
+                            <option value="10">10問</option>
+                            <option value="20" selected>20問</option>
+                            <option value="30">30問</option>
+                            <option value="0">全問</option>
+                        </select>
+                    </div>
+                    <div class="setting-group">
+                        <label for="question-order">出題順序</label>
+                        <select id="question-order">
+                            <option value="random" selected>ランダム</option>
+                            <option value="sequential">順番通り</option>
+                        </select>
+                    </div>
+                    <div class="setting-group">
+                        <label for="category-filter">カテゴリ</label>
+                        <select id="category-filter">
+                            <option value="all" selected>すべて</option>
+                            <!-- Dynamically populated -->
+                        </select>
+                    </div>
+                </div>
+
+                <button id="start-btn" class="btn btn-primary btn-large" disabled>
+                    <span class="btn-icon">▶</span> スタート
+                </button>
+            </div>
+        </div>
+
+        <!-- ========== GAME SCREEN ========== -->
+        <div id="game-screen" class="screen">
+            <div class="game-header">
+                <div class="game-stat">
+                    <span class="stat-icon">⏱</span>
+                    <span id="game-timer" class="stat-value">00:00</span>
+                </div>
+                <div class="game-stat">
+                    <span class="stat-icon">📋</span>
+                    <span>問題 <span id="current-q">1</span> / <span id="total-q">20</span></span>
+                </div>
+                <div class="game-stat">
+                    <span class="stat-icon correct-icon">✓</span>
+                    <span id="correct-count">0</span>
+                    <span class="stat-icon miss-icon">✗</span>
+                    <span id="miss-count">0</span>
+                </div>
+            </div>
+
+            <div class="game-body">
+                <div class="question-card">
+                    <div class="question-category" id="question-category">基本操作</div>
+                    <div class="question-text" id="question-text">コピー</div>
+                </div>
+
+                <div class="input-area">
+                    <div class="input-label">あなたの入力</div>
+                    <div class="key-display" id="key-display">
+                        <span class="key-placeholder">キーを押してください...</span>
+                    </div>
+                </div>
+
+                <div id="feedback" class="feedback hidden"></div>
+
+                <div class="hint-area">
+                    <button id="hint-btn" class="btn btn-ghost">💡 ヒントを見る</button>
+                    <div id="hint-text" class="hint-text hidden"></div>
+                </div>
+
+                <button id="skip-btn" class="btn btn-ghost">⏭ スキップ</button>
+            </div>
+
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+        </div>
+
+        <!-- ========== RESULT SCREEN ========== -->
+        <div id="result-screen" class="screen">
+            <div class="result-container">
+                <div class="result-rank-section">
+                    <div class="rank-label">あなたのランク</div>
+                    <div id="result-rank" class="rank-display">S</div>
+                </div>
+
+                <div class="result-stats-grid">
+                    <div class="result-stat-card">
+                        <div class="result-stat-value" id="result-accuracy">100%</div>
+                        <div class="result-stat-label">正答率</div>
+                    </div>
+                    <div class="result-stat-card">
+                        <div class="result-stat-value" id="result-time">00:00</div>
+                        <div class="result-stat-label">総時間</div>
+                    </div>
+                    <div class="result-stat-card">
+                        <div class="result-stat-value" id="result-avg">0.0s</div>
+                        <div class="result-stat-label">平均回答</div>
+                    </div>
+                    <div class="result-stat-card">
+                        <div class="result-stat-value" id="result-misses">0</div>
+                        <div class="result-stat-label">ミス回数</div>
+                    </div>
+                </div>
+
+                <div class="result-details-card" id="result-details">
+                    <h3>間違えた問題</h3>
+                    <div id="missed-list" class="missed-list">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <div class="result-actions">
+                    <button id="retry-btn" class="btn btn-primary">🔄 もう一度</button>
+                    <button id="back-btn" class="btn btn-secondary">🏠 タイトルに戻る</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

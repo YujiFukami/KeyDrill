@@ -1,0 +1,17 @@
+category,operation,keys,difficulty
+基本操作,戻る,Alt+ArrowLeft,1
+基本操作,進む,Alt+ArrowRight,1
+基本操作,一つ上のフォルダへ移動,Alt+ArrowUp,1
+基本操作,フォルダを開く,Enter,1
+基本操作,ファイル名の変更,F2,1
+基本操作,新しいフォルダの作成,Ctrl+Shift+N,2
+基本操作,削除,Delete,1
+基本操作,完全に削除,Shift+Delete,2
+基本操作,プロパティの表示,Alt+Enter,2
+基本操作,アドレスバーに移動,Alt+D,2
+検索・表示,検索ボックスに移動,Ctrl+E,2
+検索・表示,プレビューパネルの切替,Alt+P,2
+検索・表示,詳細パネルの切替,Alt+Shift+P,3
+検索・表示,ナビゲーションウィンドウの表示,Alt+D,2
+選択,全てのファイルを選択,Ctrl+A,1
+選択,選択の切替,Ctrl+Space,2
