@@ -1035,6 +1035,36 @@ function showHint() {
   state.hintUsed = true;
 }
 
+// ===== X (TWITTER) SHARE =====
+function shareToX() {
+  const rank = dom.resultRank.textContent;
+  const accuracy = dom.resultAccuracy.textContent;
+  const avgTime = dom.resultAvg.textContent;
+  const software = state.selectedSoftware ? state.selectedSoftware.name : '';
+  const totalQ = state.questions ? state.questions.length : 0;
+  const misses = state.missCount;
+
+  const rankEmoji = {
+    'S': '🏆', 'A': '⭐', 'B': '🔥', 'C': '💪', 'D': '📝'
+  }[rank] || '⌨️';
+
+  const text = [
+    `${rankEmoji} KeyDrillで${software}のショートカットキー訓練！`,
+    ``,
+    `🎯 ランク: ${rank}`,
+    `✅ 正答率: ${accuracy}`,
+    `⏱️ 平均回答: ${avgTime}`,
+    `❌ ミス: ${misses}回 / ${totalQ}問`,
+    ``,
+    `ショートカットキーをゲーム感覚で練習しよう！`,
+    `#KeyDrill #ショートカットキー訓練`,
+  ].join('\n');
+
+  const url = 'https://darling-valkyrie-f16e3d.netlify.app/';
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  window.open(twitterUrl, '_blank', 'width=550,height=420');
+}
+
 // ===== PARTICLES BACKGROUND =====
 function initParticles() {
   const canvas = document.getElementById('particles-canvas');
@@ -1119,6 +1149,8 @@ function setupEvents() {
   dom.backBtn.addEventListener('click', () => {
     showScreen('title-screen');
   });
+
+  document.getElementById('share-x-btn').addEventListener('click', shareToX);
 
   document.addEventListener('keydown', handleKeyDown);
   document.addEventListener('keyup', handleKeyUp);
