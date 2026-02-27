@@ -695,8 +695,7 @@ const FALLBACK_DATA = {
 
 // ===== DATA LOADING =====
 async function loadSoftwareList() {
-  // Clear the list and show loading state
-  dom.softwareList.innerHTML = '<p class="sw-loading" style="color: var(--text-muted); text-align: center; grid-column: 1/-1;">読み込み中...</p>';
+  dom.softwareList.innerHTML = '';
 
   let fileList = [];
 
@@ -714,19 +713,24 @@ async function loadSoftwareList() {
     fileList = Object.keys(FALLBACK_DATA);
   }
 
-  // Remove loading message once we start adding items
-  let loadingRemoved = false;
-  function removeLoading() {
-    if (!loadingRemoved) {
-      const loadingEl = dom.softwareList.querySelector('.sw-loading');
-      if (loadingEl) loadingEl.remove();
-      loadingRemoved = true;
-    }
-  }
+  // Create placeholder slots in manifest order
+  const slots = {};
+  fileList.forEach(name => {
+    const slot = document.createElement('div');
+    slot.className = 'sw-slot';
+    slot.dataset.name = name;
+    dom.softwareList.appendChild(slot);
+    slots[name] = slot;
+  });
 
-  // Load each software and render immediately when ready
-  const loadPromises = fileList.map(name => loadAndRenderSoftware(name, removeLoading));
+  // Load all CSVs in parallel, fill slots as they arrive
+  const loadPromises = fileList.map(name => loadAndRenderSoftware(name, slots[name]));
   await Promise.all(loadPromises);
+
+  // Remove empty slots (failed loads)
+  dom.softwareList.querySelectorAll('.sw-slot').forEach(s => {
+    if (!s.querySelector('.software-btn')) s.remove();
+  });
 
   // If nothing loaded, show error
   if (state.availableSoftware.length === 0) {
@@ -734,7 +738,7 @@ async function loadSoftwareList() {
   }
 }
 
-async function loadAndRenderSoftware(name, removeLoading) {
+async function loadAndRenderSoftware(name, slot) {
   let data = null;
 
   try {
@@ -752,24 +756,24 @@ async function loadAndRenderSoftware(name, removeLoading) {
   if (data && data.length > 0) {
     const sw = { name, filename: `${name}.csv`, data };
     state.availableSoftware.push(sw);
-    removeLoading();
-    appendSoftwareButton(sw);
+
+    const btn = document.createElement('button');
+    btn.className = 'software-btn sw-fade-in';
+    btn.innerHTML = `<span class="sw-name">${sw.name}</span><span class="sw-count">${sw.data.length} 問</span>`;
+    btn.addEventListener('click', () => selectSoftware(sw, btn));
+    slot.appendChild(btn);
   }
 }
 
 // ===== RENDER SOFTWARE LIST =====
-function appendSoftwareButton(sw) {
-  const btn = document.createElement('button');
-  btn.className = 'software-btn sw-fade-in';
-  btn.innerHTML = `<span class="sw-name">${sw.name}</span><span class="sw-count">${sw.data.length} 問</span>`;
-  btn.addEventListener('click', () => selectSoftware(sw, btn));
-  dom.softwareList.appendChild(btn);
-}
-
 function renderSoftwareList() {
   dom.softwareList.innerHTML = '';
   state.availableSoftware.forEach(sw => {
-    appendSoftwareButton(sw);
+    const btn = document.createElement('button');
+    btn.className = 'software-btn';
+    btn.innerHTML = `<span class="sw-name">${sw.name}</span><span class="sw-count">${sw.data.length} 問</span>`;
+    btn.addEventListener('click', () => selectSoftware(sw, btn));
+    dom.softwareList.appendChild(btn);
   });
 
   if (state.availableSoftware.length === 0) {
