@@ -695,79 +695,81 @@ const FALLBACK_DATA = {
 
 // ===== DATA LOADING =====
 async function loadSoftwareList() {
-  const software = [];
-  let usedFallback = false;
+  // Clear the list and show loading state
+  dom.softwareList.innerHTML = '<p class="sw-loading" style="color: var(--text-muted); text-align: center; grid-column: 1/-1;">読み込み中...</p>';
 
-  // Try to load from server (works with http:// but not file://)
+  let fileList = [];
+
+  // Try to get manifest
   try {
-    let fileList = [];
-    try {
-      const resp = await fetch(`${DATA_DIR}/manifest.json`);
-      if (resp.ok) {
-        fileList = await resp.json();
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    if (fileList.length === 0) {
-      fileList = Object.keys(FALLBACK_DATA);
-    }
-
-    for (const name of fileList) {
-      try {
-        const resp = await fetch(`${DATA_DIR}/${name}.csv`);
-        if (!resp.ok) throw new Error('not ok');
-        const text = await resp.text();
-        const data = parseCSV(text).filter(q => q.keys && !isBlocked(q.keys));
-        if (data.length > 0) {
-          software.push({ name, filename: `${name}.csv`, data });
-        }
-      } catch (e) {
-        // Try fallback for this specific software
-        if (FALLBACK_DATA[name]) {
-          const data = parseCSV(FALLBACK_DATA[name]).filter(q => q.keys && !isBlocked(q.keys));
-          if (data.length > 0) {
-            software.push({ name, filename: `${name}.csv`, data });
-            usedFallback = true;
-          }
-        }
-      }
+    const resp = await fetch(`${DATA_DIR}/manifest.json`);
+    if (resp.ok) {
+      fileList = await resp.json();
     }
   } catch (e) {
-    // Full fallback: use all embedded data
-    for (const [name, csv] of Object.entries(FALLBACK_DATA)) {
-      const data = parseCSV(csv).filter(q => q.keys && !isBlocked(q.keys));
-      if (data.length > 0) {
-        software.push({ name, filename: `${name}.csv`, data });
-      }
-    }
-    usedFallback = true;
+    // ignore
   }
 
-  // If still empty, use all fallback data
-  if (software.length === 0) {
-    for (const [name, csv] of Object.entries(FALLBACK_DATA)) {
-      const data = parseCSV(csv).filter(q => q.keys && !isBlocked(q.keys));
-      if (data.length > 0) {
-        software.push({ name, filename: `${name}.csv`, data });
-      }
+  if (fileList.length === 0) {
+    fileList = Object.keys(FALLBACK_DATA);
+  }
+
+  // Remove loading message once we start adding items
+  let loadingRemoved = false;
+  function removeLoading() {
+    if (!loadingRemoved) {
+      const loadingEl = dom.softwareList.querySelector('.sw-loading');
+      if (loadingEl) loadingEl.remove();
+      loadingRemoved = true;
     }
   }
 
-  state.availableSoftware = software;
-  renderSoftwareList();
+  // Load each software and render immediately when ready
+  const loadPromises = fileList.map(name => loadAndRenderSoftware(name, removeLoading));
+  await Promise.all(loadPromises);
+
+  // If nothing loaded, show error
+  if (state.availableSoftware.length === 0) {
+    dom.softwareList.innerHTML = '<p style="color: var(--text-muted); text-align: center; grid-column: 1/-1;">CSVデータが見つかりません。<br><code>data/</code> フォルダにCSVファイルを配置してください。</p>';
+  }
+}
+
+async function loadAndRenderSoftware(name, removeLoading) {
+  let data = null;
+
+  try {
+    const resp = await fetch(`${DATA_DIR}/${name}.csv`);
+    if (!resp.ok) throw new Error('not ok');
+    const text = await resp.text();
+    data = parseCSV(text).filter(q => q.keys && !isBlocked(q.keys));
+  } catch (e) {
+    // Try fallback
+    if (FALLBACK_DATA[name]) {
+      data = parseCSV(FALLBACK_DATA[name]).filter(q => q.keys && !isBlocked(q.keys));
+    }
+  }
+
+  if (data && data.length > 0) {
+    const sw = { name, filename: `${name}.csv`, data };
+    state.availableSoftware.push(sw);
+    removeLoading();
+    appendSoftwareButton(sw);
+  }
 }
 
 // ===== RENDER SOFTWARE LIST =====
+function appendSoftwareButton(sw) {
+  const btn = document.createElement('button');
+  btn.className = 'software-btn sw-fade-in';
+  btn.innerHTML = `<span class="sw-name">${sw.name}</span><span class="sw-count">${sw.data.length} 問</span>`;
+  btn.addEventListener('click', () => selectSoftware(sw, btn));
+  dom.softwareList.appendChild(btn);
+}
+
 function renderSoftwareList() {
   dom.softwareList.innerHTML = '';
   state.availableSoftware.forEach(sw => {
-    const btn = document.createElement('button');
-    btn.className = 'software-btn';
-    btn.innerHTML = `<span class="sw-name">${sw.name}</span><span class="sw-count">${sw.data.length} 問</span>`;
-    btn.addEventListener('click', () => selectSoftware(sw, btn));
-    dom.softwareList.appendChild(btn);
+    appendSoftwareButton(sw);
   });
 
   if (state.availableSoftware.length === 0) {
