@@ -110,6 +110,9 @@
                 <button id="start-btn" class="btn btn-primary btn-large" disabled>
                     <span class="btn-icon">▶</span> スタート
                 </button>
+                <button id="ranking-btn" class="btn btn-secondary btn-large" style="margin-top: 10px;">
+                    <span class="btn-icon">🏆</span> ランキング一覧
+                </button>
             </div>
         </div>
 
@@ -139,9 +142,16 @@
                 </div>
 
                 <div class="input-area">
-                    <div class="input-label">あなたの入力</div>
+                    <div class="input-label">キーボードで入力 または 選択肢をタップ</div>
                     <div class="key-display" id="key-display">
                         <span class="key-placeholder">キーを押してください...</span>
+                    </div>
+                </div>
+
+                <div class="choices-area" id="choices-area">
+                    <div class="choices-label">選択肢</div>
+                    <div class="choices-grid" id="choices-grid">
+                        <!-- Dynamically populated with 3 choice buttons -->
                     </div>
                 </div>
 
@@ -194,6 +204,16 @@
                     </div>
                 </div>
 
+                <div class="ranking-register-section" id="ranking-register-section">
+                    <h3 class="ranking-register-title">🏆 ランキングに登録</h3>
+                    <div class="ranking-register-form">
+                        <input type="text" id="ranking-name-input" class="ranking-name-input" placeholder="名前を入力"
+                            maxlength="20">
+                        <button id="ranking-register-btn" class="btn btn-primary">登録する</button>
+                    </div>
+                    <div id="ranking-register-msg" class="ranking-register-msg hidden"></div>
+                </div>
+
                 <div class="result-actions">
                     <button id="retry-btn" class="btn btn-primary">🔄 もう一度</button>
                     <button id="back-btn" class="btn btn-secondary">🏠 タイトルに戻る</button>
@@ -207,6 +227,35 @@
                         結果をXでシェア
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- ========== RANKING SCREEN ========== -->
+        <div id="ranking-screen" class="screen">
+            <div class="ranking-container">
+                <h2 class="ranking-title">🏆 ランキング</h2>
+                <div class="ranking-software-tabs" id="ranking-software-tabs">
+                    <!-- Dynamically populated -->
+                </div>
+                <div class="ranking-table-wrapper" id="ranking-table-wrapper">
+                    <table class="ranking-table" id="ranking-table">
+                        <thead>
+                            <tr>
+                                <th>順位</th>
+                                <th>名前</th>
+                                <th>ランク</th>
+                                <th>正答率</th>
+                                <th>平均</th>
+                                <th>日付</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ranking-table-body">
+                            <!-- Dynamically populated -->
+                        </tbody>
+                    </table>
+                    <div id="ranking-empty-msg" class="ranking-empty-msg hidden">まだランキングデータがありません。</div>
+                </div>
+                <button id="ranking-back-btn" class="btn btn-secondary" style="margin-top: 20px;">🏠 タイトルに戻る</button>
             </div>
         </div>
 

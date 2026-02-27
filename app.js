@@ -702,10 +702,14 @@ function showQuestion() {
   dom.hintText.classList.add('hidden');
   dom.hintBtn.style.display = '';
   state.hintUsed = false;
+  state.choiceAnswered = false;
 
   // Update progress
   const progress = (state.currentIndex / state.questions.length) * 100;
   dom.progressBar.style.width = `${progress}%`;
+
+  // Generate and render choices
+  renderChoices(q.keys);
 
   state.questionStartTime = Date.now();
 }
@@ -808,8 +812,190 @@ function normalizeInput(str) {
     .join('+');
 }
 
+// ===== KEYBOARD LAYOUT FOR CHOICE GENERATION =====
+// QWERTY keyboard layout with row/column positions
+const KEYBOARD_LAYOUT = {
+  // Row 0: Number row
+  '1': [0, 0], '2': [0, 1], '3': [0, 2], '4': [0, 3], '5': [0, 4],
+  '6': [0, 5], '7': [0, 6], '8': [0, 7], '9': [0, 8], '0': [0, 9],
+  '-': [0, 10], '=': [0, 11],
+  // Row 1: QWERTY row
+  'Q': [1, 0], 'W': [1, 1], 'E': [1, 2], 'R': [1, 3], 'T': [1, 4],
+  'Y': [1, 5], 'U': [1, 6], 'I': [1, 7], 'O': [1, 8], 'P': [1, 9],
+  '[': [1, 10], ']': [1, 11],
+  // Row 2: ASDF row
+  'A': [2, 0], 'S': [2, 1], 'D': [2, 2], 'F': [2, 3], 'G': [2, 4],
+  'H': [2, 5], 'J': [2, 6], 'K': [2, 7], 'L': [2, 8],
+  ';': [2, 9], "'": [2, 10],
+  // Row 3: ZXCV row
+  'Z': [3, 0], 'X': [3, 1], 'C': [3, 2], 'V': [3, 3], 'B': [3, 4],
+  'N': [3, 5], 'M': [3, 6], ',': [3, 7], '.': [3, 8], '/': [3, 9],
+};
+
+// Special keys that can substitute for each other
+const SPECIAL_KEY_GROUPS = {
+  arrows: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'],
+  fkeys: ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12'],
+  nav: ['Home', 'End', 'PageUp', 'PageDown'],
+  editing: ['Enter', 'Tab', 'Backspace', 'Delete', 'Escape', 'Space', 'Insert'],
+};
+
+function getKeyboardDistance(k1, k2) {
+  const p1 = KEYBOARD_LAYOUT[k1.toUpperCase()];
+  const p2 = KEYBOARD_LAYOUT[k2.toUpperCase()];
+  if (!p1 || !p2) return Infinity;
+  return Math.abs(p1[0] - p2[0]) + Math.abs(p1[1] - p2[1]);
+}
+
+function generateWrongChoices(correctKeys, count) {
+  const parts = correctKeys.split('+').map(k => k.trim());
+  const modifiers = parts.filter(k => ['Ctrl', 'Shift', 'Alt', 'Win'].includes(k));
+  const mainKeys = parts.filter(k => !['Ctrl', 'Shift', 'Alt', 'Win'].includes(k));
+  const mainKey = mainKeys.length > 0 ? mainKeys[mainKeys.length - 1] : null;
+
+  const wrongChoices = new Set();
+  const normalizedCorrect = normalizeInput(correctKeys);
+
+  if (mainKey) {
+    const upperMain = mainKey.toUpperCase();
+
+    // Check if it's a special key group
+    let specialGroup = null;
+    for (const [group, keys] of Object.entries(SPECIAL_KEY_GROUPS)) {
+      if (keys.some(k => k.toLowerCase() === mainKey.toLowerCase())) {
+        specialGroup = keys.filter(k => k.toLowerCase() !== mainKey.toLowerCase());
+        break;
+      }
+    }
+
+    if (specialGroup && specialGroup.length > 0) {
+      // For special keys (arrows, F-keys, etc.), pick from same group
+      const shuffled = [...specialGroup].sort(() => Math.random() - 0.5);
+      for (const altKey of shuffled) {
+        if (wrongChoices.size >= count) break;
+        const candidate = [...modifiers, altKey].join('+');
+        if (normalizeInput(candidate) !== normalizedCorrect) {
+          wrongChoices.add(candidate);
+        }
+      }
+    }
+
+    // For regular letter/number keys, find nearby keys (distance 2-4)
+    if (KEYBOARD_LAYOUT[upperMain]) {
+      const candidates = Object.keys(KEYBOARD_LAYOUT)
+        .filter(k => {
+          const dist = getKeyboardDistance(upperMain, k);
+          return dist >= 2 && dist <= 4 && k !== upperMain;
+        })
+        .sort(() => Math.random() - 0.5);
+
+      for (const altKey of candidates) {
+        if (wrongChoices.size >= count) break;
+        const candidate = [...modifiers, altKey].join('+');
+        if (normalizeInput(candidate) !== normalizedCorrect) {
+          wrongChoices.add(candidate);
+        }
+      }
+    }
+
+    // Fallback: vary modifiers slightly
+    if (wrongChoices.size < count) {
+      const modVariants = [
+        [...modifiers.filter(m => m !== 'Shift'), 'Shift'],
+        [...modifiers.filter(m => m !== 'Ctrl'), 'Ctrl'],
+        [...modifiers.filter(m => m !== 'Alt'), 'Alt'],
+        modifiers.filter(m => m !== 'Shift'),
+      ];
+      for (const mods of modVariants) {
+        if (wrongChoices.size >= count) break;
+        const uniqueMods = [...new Set(mods)].filter(Boolean);
+        if (uniqueMods.length === 0 && mainKeys.length > 0) continue;
+        const candidate = [...uniqueMods, mainKey].join('+');
+        if (normalizeInput(candidate) !== normalizedCorrect && candidate !== mainKey) {
+          wrongChoices.add(candidate);
+        }
+      }
+    }
+  }
+
+  // Ultimate fallback: pick from other questions in the current set
+  if (wrongChoices.size < count && state.questions) {
+    const otherKeys = state.questions
+      .map(q => q.keys)
+      .filter(k => normalizeInput(k) !== normalizedCorrect)
+      .sort(() => Math.random() - 0.5);
+    for (const k of otherKeys) {
+      if (wrongChoices.size >= count) break;
+      wrongChoices.add(k);
+    }
+  }
+
+  return [...wrongChoices].slice(0, count);
+}
+
+function renderChoices(correctKeys) {
+  const grid = document.getElementById('choices-grid');
+  grid.innerHTML = '';
+
+  const wrongChoices = generateWrongChoices(correctKeys, 2);
+  const allChoices = [correctKeys, ...wrongChoices];
+
+  // Shuffle choices
+  for (let i = allChoices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allChoices[i], allChoices[j]] = [allChoices[j], allChoices[i]];
+  }
+
+  allChoices.forEach(keys => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    // Render key badges inside the button
+    const parts = keys.split('+').map(k => k.trim());
+    btn.innerHTML = parts.map((p, i) => {
+      const badge = `<span class="choice-key-badge">${friendlyKeys(p)}</span>`;
+      return i < parts.length - 1 ? badge + '<span class="choice-plus">+</span>' : badge;
+    }).join('');
+    btn.dataset.keys = keys;
+    btn.addEventListener('click', () => handleChoiceClick(btn, keys, correctKeys));
+    grid.appendChild(btn);
+  });
+}
+
+function handleChoiceClick(btn, selectedKeys, correctKeys) {
+  if (state.choiceAnswered || !state.gameActive) return;
+  state.choiceAnswered = true;
+
+  const isCorrect = normalizeInput(selectedKeys) === normalizeInput(correctKeys);
+
+  // Disable all choice buttons
+  document.querySelectorAll('.choice-btn').forEach(b => b.classList.add('choice-disabled'));
+
+  // Show the selected key in the key-display area
+  const parts = selectedKeys.split('+').map(k => friendlyKeys(k.trim()));
+  renderKeyBadges(parts);
+
+  if (isCorrect) {
+    btn.classList.add('choice-correct');
+    // Also highlight correct in key-display
+    dom.keyDisplay.classList.add('correct');
+    handleCorrect();
+  } else {
+    btn.classList.add('choice-wrong');
+    dom.keyDisplay.classList.add('wrong');
+    // Highlight the correct answer
+    document.querySelectorAll('.choice-btn').forEach(b => {
+      if (normalizeInput(b.dataset.keys) === normalizeInput(correctKeys)) {
+        b.classList.add('choice-correct');
+      }
+    });
+    handleWrong(selectedKeys, correctKeys);
+  }
+}
+
 function handleKeyDown(e) {
   if (!state.gameActive) return;
+  // Don't intercept keys when typing in ranking name input
+  if (document.activeElement && document.activeElement.id === 'ranking-name-input') return;
 
   e.preventDefault();
   e.stopPropagation();
@@ -864,6 +1050,16 @@ function handleCorrect() {
   dom.feedback.textContent = '✅ 正解！';
   dom.feedback.className = 'feedback correct-feedback';
   SFX.correct();
+
+  // Disable choices and highlight correct one
+  state.choiceAnswered = true;
+  const q = state.questions[state.currentIndex];
+  document.querySelectorAll('.choice-btn').forEach(b => {
+    b.classList.add('choice-disabled');
+    if (normalizeInput(b.dataset.keys) === normalizeInput(q.keys)) {
+      b.classList.add('choice-correct');
+    }
+  });
 
   setTimeout(() => nextQuestion(), 800);
 }
@@ -975,6 +1171,16 @@ function endGame() {
   showScreen('result-screen');
   SFX.fanfare();
 
+  // Reset ranking register section
+  const registerSection = document.getElementById('ranking-register-section');
+  const registerMsg = document.getElementById('ranking-register-msg');
+  const registerBtn = document.getElementById('ranking-register-btn');
+  const nameInput = document.getElementById('ranking-name-input');
+  registerSection.style.display = '';
+  registerBtn.disabled = false;
+  registerMsg.classList.add('hidden');
+  nameInput.value = localStorage.getItem('keydrill_last_name') || '';
+
   // Save to localStorage
   saveScore({
     software: state.selectedSoftware.name,
@@ -996,6 +1202,145 @@ function saveScore(score) {
   } catch (e) {
     // ignore
   }
+}
+
+// ===== RANKING SYSTEM =====
+function registerRanking() {
+  const nameInput = document.getElementById('ranking-name-input');
+  const msg = document.getElementById('ranking-register-msg');
+  const registerBtn = document.getElementById('ranking-register-btn');
+  const name = nameInput.value.trim();
+
+  if (!name) {
+    msg.textContent = '❌ 名前を入力してください';
+    msg.className = 'ranking-register-msg error';
+    return;
+  }
+
+  // Save last used name
+  localStorage.setItem('keydrill_last_name', name);
+
+  const totalQ = state.questions.length;
+  const accuracy = totalQ > 0 ? Math.round((state.correctCount / totalQ) * 100) : 0;
+  const totalTime = Date.now() - state.startTime;
+  const avgTime = totalQ > 0 ? (state.totalAnswerTime / totalQ / 1000).toFixed(1) : '0.0';
+
+  let rank = 'D';
+  if (accuracy >= 95 && parseFloat(avgTime) <= 3) rank = 'S';
+  else if (accuracy >= 90 && parseFloat(avgTime) <= 5) rank = 'A';
+  else if (accuracy >= 75) rank = 'B';
+  else if (accuracy >= 50) rank = 'C';
+
+  const entry = {
+    name,
+    software: state.selectedSoftware.name,
+    rank,
+    accuracy,
+    avgTime: parseFloat(avgTime),
+    totalTime,
+    missCount: state.missCount,
+    totalQuestions: totalQ,
+    date: new Date().toISOString(),
+  };
+
+  try {
+    const rankings = JSON.parse(localStorage.getItem('keydrill_rankings') || '[]');
+    rankings.push(entry);
+    // Keep top 200 entries overall
+    if (rankings.length > 200) {
+      rankings.sort((a, b) => b.accuracy - a.accuracy || a.avgTime - b.avgTime);
+      rankings.splice(200);
+    }
+    localStorage.setItem('keydrill_rankings', JSON.stringify(rankings));
+  } catch (e) {
+    // ignore
+  }
+
+  msg.textContent = '✅ ランキングに登録しました！';
+  msg.className = 'ranking-register-msg';
+  registerBtn.disabled = true;
+}
+
+function getRankings(softwareName) {
+  try {
+    const rankings = JSON.parse(localStorage.getItem('keydrill_rankings') || '[]');
+    return rankings
+      .filter(r => r.software === softwareName)
+      .sort((a, b) => {
+        // Sort by accuracy (desc), then avgTime (asc)
+        if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
+        return a.avgTime - b.avgTime;
+      })
+      .slice(0, 10); // Top 10
+  } catch (e) {
+    return [];
+  }
+}
+
+function showRankingScreen() {
+  showScreen('ranking-screen');
+
+  const tabsContainer = document.getElementById('ranking-software-tabs');
+  tabsContainer.innerHTML = '';
+
+  // Create tabs for each software
+  const softwareNames = state.availableSoftware.map(s => s.name);
+  const defaultSoftware = (state.selectedSoftware && state.selectedSoftware.name) || softwareNames[0] || '';
+
+  softwareNames.forEach(name => {
+    const tab = document.createElement('button');
+    tab.className = 'ranking-tab' + (name === defaultSoftware ? ' active' : '');
+    tab.textContent = name;
+    tab.addEventListener('click', () => {
+      tabsContainer.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderRankingTable(name);
+    });
+    tabsContainer.appendChild(tab);
+  });
+
+  renderRankingTable(defaultSoftware);
+}
+
+function renderRankingTable(softwareName) {
+  const tbody = document.getElementById('ranking-table-body');
+  const emptyMsg = document.getElementById('ranking-empty-msg');
+  const table = document.getElementById('ranking-table');
+  const rankings = getRankings(softwareName);
+
+  if (rankings.length === 0) {
+    table.style.display = 'none';
+    emptyMsg.classList.remove('hidden');
+    return;
+  }
+
+  table.style.display = '';
+  emptyMsg.classList.add('hidden');
+
+  const rankColors = {
+    'S': '#fbbf24', 'A': '#34d399', 'B': '#60a5fa', 'C': '#f59e0b', 'D': '#94a3b8'
+  };
+  const medals = ['🥇', '🥈', '🥉'];
+
+  tbody.innerHTML = rankings.map((r, i) => {
+    const dateStr = new Date(r.date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+    const medal = i < 3 ? medals[i] : `${i + 1}`;
+    const rankColor = rankColors[r.rank] || '#94a3b8';
+    return `<tr>
+      <td>${medal}</td>
+      <td>${escapeHtml(r.name)}</td>
+      <td><span class="rank-badge" style="color: ${rankColor}">${r.rank}</span></td>
+      <td>${r.accuracy}%</td>
+      <td>${r.avgTime}s</td>
+      <td>${dateStr}</td>
+    </tr>`;
+  }).join('');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 // ===== FRIENDLY KEY DISPLAY =====
@@ -1151,6 +1496,13 @@ function setupEvents() {
   });
 
   document.getElementById('share-x-btn').addEventListener('click', shareToX);
+
+  // Ranking buttons
+  document.getElementById('ranking-btn').addEventListener('click', showRankingScreen);
+  document.getElementById('ranking-register-btn').addEventListener('click', registerRanking);
+  document.getElementById('ranking-back-btn').addEventListener('click', () => {
+    showScreen('title-screen');
+  });
 
   document.addEventListener('keydown', handleKeyDown);
   document.addEventListener('keyup', handleKeyUp);
